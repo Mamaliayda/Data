@@ -13,6 +13,8 @@ object Prefs {
     private const val KEY_COUNT = "auto_enable_count"
     private const val KEY_LAST_CHECK = "last_check"
     private const val KEY_LOG = "event_log"
+    private const val KEY_LOCK_ON_DISABLE = "lock_on_disable"
+    private const val KEY_LOCK_DELAY_MS = "lock_delay_ms"
 
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
@@ -56,4 +58,18 @@ object Prefs {
             .split("\n")
             .filter { it.isNotBlank() }
             .reversed()
+
+    fun isLockOnDisableEnabled(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_LOCK_ON_DISABLE, false)
+
+    fun setLockOnDisableEnabled(context: Context, enabled: Boolean) {
+        prefs(context).edit().putBoolean(KEY_LOCK_ON_DISABLE, enabled).apply()
+    }
+
+    fun getLockDelayMs(context: Context): Long =
+        prefs(context).getLong(KEY_LOCK_DELAY_MS, 5000L)
+
+    fun setLockDelayMs(context: Context, ms: Long) {
+        prefs(context).edit().putLong(KEY_LOCK_DELAY_MS, ms).apply()
+    }
 }

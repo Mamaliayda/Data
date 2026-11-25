@@ -148,6 +148,14 @@ private fun AlwaysDataScreen() {
     var batteryExempt by remember { mutableStateOf(isBatteryExempt(context)) }
     var isDeviceOwner by remember { mutableStateOf(checkDeviceOwner(context)) }
 
+    var isAdminActive by remember { mutableStateOf(DeviceAdminHelper.isAdminActive(context)) }
+    var lockOnDisable by remember { mutableStateOf(Prefs.isLockOnDisableEnabled(context)) }
+    var lockDelaySec by remember { mutableStateOf((Prefs.getLockDelayMs(context)/1000).toInt()) }
+
+    val adminLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { isAdminActive = DeviceAdminHelper.isAdminActive(context) }
+
     // Live refresh every 2 seconds (mirrors the service poll).
     LaunchedEffect(Unit) {
         while (true) {
@@ -159,6 +167,9 @@ private fun AlwaysDataScreen() {
             logs = Prefs.getLog(context)
             batteryExempt = isBatteryExempt(context)
             isDeviceOwner = checkDeviceOwner(context)
+            isAdminActive = DeviceAdminHelper.isAdminActive(context)
+            lockOnDisable = Prefs.isLockOnDisableEnabled(context)
+            lockDelaySec = (Prefs.getLockDelayMs(context)/1000).toInt()
             delay(2000)
         }
     }
@@ -390,11 +401,83 @@ private fun AlwaysDataScreen() {
                 }
             )
 
+            // ------------------------------------------------ Device Admin: قفل صفحه
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isAdminActive) Color(0xFF14331F) else AppColorScheme.surface
+                )
+            ) {
+                Column(Modifier.padding(18.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier.size(44.dp).clip(CircleShape).background(AppColorScheme.surfaceVariant),
+                            contentAlignment = Alignment.Center
+                        ) { Icon(Icons.Filled.Security, contentDescription = null) }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("قفل با Device Admin (بدون پاک شدن)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text(
+                                if (isAdminActive) "فعاله ✓ — بدون ریست کار می‌کنه"
+                                else "با یک تایید، اگه دیتا خاموش شد صفحه قفل می‌شه",
+                                fontSize = 12.sp, color = Color(0xFF9FB3D1)
+                            )
+                        }
+                        if (!isAdminActive) {
+                            Button(
+                                onClick = { adminLauncher.launch(DeviceAdminHelper.requestEnableIntent(context)) },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4ADE80), contentColor = Color(0xFF052E16))
+                            ) { Text("فعال‌سازی") }
+                        } else {
+                            Icon(Icons.Filled.CheckCircle, null, tint = Color(0xFF4ADE80), modifier = Modifier.size(22.dp))
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Text("اگه دیتا خاموش شد، صفحه هم قفل می‌شه و ۵ ثانیه بعد خودش دیتا رو روشن می‌کنه — می‌کشه پایین و روشن می‌کنه. برای خاموش کردن همیشگی باید از خود همین برنامه سوییچ رو بزنی.", fontSize = 12.sp, color = Color(0xFF9FB3D1))
+                    Spacer(Modifier.height(10.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.weight(1f)) {
+                            Text("حالت تنبیهی: خاموش = قفل + روشن خودکار", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            Text("${lockDelaySec} ثانیه بعد روشن می‌شه", fontSize = 12.sp, color = Color(0xFF9FB3D1))
+                        }
+                        Switch(
+                            checked = lockOnDisable,
+                            onCheckedChange = {
+                                if (!isAdminActive) {
+                                    adminLauncher.launch(DeviceAdminHelper.requestEnableIntent(context))
+                                    return@Switch
+                                }
+                                Prefs.setLockOnDisableEnabled(context, it)
+                                lockOnDisable = it
+                                Prefs.log(context, if (it) "حالت قفل صفحه فعال شد" else "حالت قفل صفحه خاموش شد")
+                            }
+                        )
+                    }
+                    if (lockOnDisable) {
+                        Spacer(Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(3,5,7,10).forEach { sec ->
+                                val sel = lockDelaySec == sec
+                                OutlinedButton(
+                                    onClick = {
+                                        Prefs.setLockDelayMs(context, sec*1000L)
+                                        lockDelaySec = sec
+                                    },
+                                    colors = if (sel) ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFF4ADE80), contentColor = Color(0xFF052E16)) else ButtonDefaults.outlinedButtonColors()
+                                ) { Text("${sec}ث") }
+                            }
+                        }
+                        Text("تست: نوار بالا رو بکش پایین، دیتا رو خاموش کن — باید صفحه فوری قفل بشه و بعد ${lockDelaySec} ثانیه روشن بشه.", fontSize = 11.sp, color = Color(0xFFFBBF24), modifier = Modifier.padding(top=6.dp))
+                    }
+                }
+            }
+
             ActionRow(
                 icon = { Icon(Icons.Filled.Security, contentDescription = null) },
-                title = "قفل کامل (Device Owner)",
-                subtitle = if (isDeviceOwner) "فعال است ✓ — تنظیمات دیتا قفل شده، حذف و ریست محدود شده" else "مهم: فقط با این گزینه سوییچ دیتا واقعا قفل می‌شود — بدون آن فقط خودکار روشن می‌شود",
-                buttonText = if (isDeviceOwner) "مدیریت" else "راهنما + فعال‌سازی",
+                title = "قفل سوییچ (Profile/Device Owner) — اختیاری و قوی‌تر",
+                subtitle = if (isDeviceOwner) "فعاله ✓ — سوییچ تنظیمات خاکستری شده" else "بدون پاک شدن هم می‌شه: با ADB سوییچ رو قفل می‌کنه (اختیاری)",
+                buttonText = if (isDeviceOwner) "مدیریت" else "راهنما",
                 enabled = true,
                 onClick = { showOwnerDialog = true }
             )
@@ -408,7 +491,7 @@ private fun AlwaysDataScreen() {
                     Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = Color(0xFF4ADE80), modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("حالت سخت فعاله — برای لغو، اول سوییچ بالا رو خاموش کن بعد Device Owner رو بردار", fontSize = 12.sp, color = Color(0xFFBBF7D0))
+                        Text("حالت سخت فعاله — برای لغو، اول سوییچ بالا رو خاموش کن بعد مدیریت رو بردار", fontSize = 12.sp, color = Color(0xFFBBF7D0))
                     }
                 }
             }
