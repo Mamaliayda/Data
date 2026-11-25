@@ -24,11 +24,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * سرویس قلب برنامه.
- * هر POLL_MS چک می‌کنه. اگه حفاظت روشنه و دیتا خاموشه:
- *  1) اگه حالت «قفل با Device Admin» فعاله → صفحه فوری lockNow() می‌شه
- *  2) بعد 5 ثانیه (قابل تنظیم) خودکار MobileDataController روشن می‌کنه
- *  3) دوباره چک می‌کنه تا مطمئن بشه روشن مونده
+ * هر 2 ثانیه چک می‌کنه. اگه حفاظت روشنه و دیتا خاموشه → خودکار روشن می‌کنه.
+ * با Device Admin فعال باشه، مطمئن‌تره — ولی بدون اون هم کار می‌کنه.
+ * قفل صفحه حذف شد.
  */
 class AlwaysDataService : Service() {
 
@@ -37,7 +35,6 @@ class AlwaysDataService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var lastNotificationState: Boolean? = null
-    private var lastLockTime = 0L
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -87,39 +84,22 @@ class AlwaysDataService : Service() {
     }
 
     private fun handleDataOff() {
-        val lockEnabled = Prefs.isLockOnDisableEnabled(this)
-        val isAdmin = DeviceAdminHelper.isAdminActive(this)
-        val now = System.currentTimeMillis()
-
-        // جلوگیری از قفل پشت سر هم (هر 2 ثانیه چک می‌کنیم ولی قفل هر 7 ثانیه حداکثر)
-        val shouldLock = lockEnabled && isAdmin && (now - lastLockTime > 7000L)
-
-        if (shouldLock) {
-            lastLockTime = now
-            Prefs.log(this, "دیتا خاموش شد → صفحه قفل می‌شود")
-            DeviceAdminHelper.lockNow(this)
-        }
-
-        // 5 ثانیه بعد (یا همون لحظه اگه قفل خاموشه) دیتا رو روشن کن
-        val delayMs = if (lockEnabled && isAdmin) Prefs.getLockDelayMs(this) else 800L
-
         Prefs.incrementAutoEnableCount(this)
-
-        scope.launch {
-            delay(delayMs)
-            if (!Prefs.isProtectionEnabled(this@AlwaysDataService)) return@launch
-            val ok = MobileDataController.setMobileDataEnabled(this@AlwaysDataService, true)
-            Prefs.log(
-                this@AlwaysDataService,
-                if (ok) "دیتا خاموش بود — بعد از ${delayMs/1000} ثانیه روشن شد (خودکار)"
-                else "دیتا خاموش بود — تلاش خودکار بعد از قفل انجام شد"
-            )
-            // اگه باز هم خاموش بود یه بار دیگه
-            delay(1500)
-            if (!MobileDataController.isMobileDataEnabled(this@AlwaysDataService)
-                && Prefs.isProtectionEnabled(this@AlwaysDataService)) {
-                MobileDataController.setMobileDataEnabled(this@AlwaysDataService, true)
+        Prefs.log(this, "دیتا خاموش شد — در حال روشن کردن خودکار با Device Admin")
+        // سریع تلاش کن
+        val ok = MobileDataController.setMobileDataEnabled(this, true)
+        if (!ok) {
+            // اگه نشد، 1.5 ثانیه بعد دوباره
+            scope.launch {
+                delay(1500)
+                if (!MobileDataController.isMobileDataEnabled(this@AlwaysDataService)
+                    && Prefs.isProtectionEnabled(this@AlwaysDataService)) {
+                    MobileDataController.setMobileDataEnabled(this@AlwaysDataService, true)
+                    Prefs.log(this@AlwaysDataService, "تلاش مجدد برای روشن کردن دیتا")
+                }
             }
+        } else {
+            Prefs.log(this, "دیتا با موفقیت روشن شد")
         }
     }
 

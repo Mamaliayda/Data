@@ -4,12 +4,12 @@ import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.provider.Settings
 
 /**
- * حالت ساده‌ی مورد علاقه‌ی کاربر: با Device Admin (بدون نیاز به factory reset)
- * اگه دیتا خاموش شد → صفحه فوری قفل می‌شه → ۵ ثانیه بعد خودکار دیتا روشن می‌شه.
- * این «تنبیه» باعث می‌شه کسی هی خاموش/روشن بازی درنیاره.
+ * ساده شد: فقط Device Admin برای روشن کردن خودکار دیتا.
+ * قفل صفحه کامل حذف شد (همون اروری که گفتی).
+ * اگه دیتا خاموش شد → برنامه با Device Admin خودکار روشنش می‌کنه.
+ * بدون ریست، بدون پاک شدن حافظه — فقط یکبار تایید.
  */
 object DeviceAdminHelper {
 
@@ -23,27 +23,13 @@ object DeviceAdminHelper {
         dpm(context).isAdminActive(admin(context))
     } catch (_: Exception) { false }
 
-    fun lockNow(context: Context): Boolean = try {
-        // باید از سرویس/اکتیویتی باشه نه از receiver مستقیم
-        dpm(context).lockNow()
-        Prefs.log(context, "صفحه قفل شد (دیتا خاموش شده بود)")
-        true
-    } catch (e: Exception) {
-        Prefs.log(context, "قفل صفحه ناموفق: ${e.message}")
-        false
-    }
-
     fun requestEnableIntent(context: Context): Intent {
         return Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
             putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, admin(context))
             putExtra(
                 DevicePolicyManager.EXTRA_ADD_EXPLANATION,
-                "برای اینکه اگه دیتا خاموش شد صفحه قفل بشه و ۵ ثانیه بعد خودکار روشن بشه، این دسترسی لازمه. بدون ریست و بدون پاک شدن حافظه."
+                "برای اینکه اگه دیتای موبایل خاموش شد خودکار روشن بشه، این دسترسی لازمه. بدون ریست و بدون پاک شدن. فقط دیتا رو روشن می‌کنه، صفحه رو قفل نمی‌کنه."
             )
         }
-    }
-
-    fun openSecuritySettings(context: Context) {
-        try { context.startActivity(Intent(Settings.ACTION_SECURITY_SETTINGS)) } catch (_: Exception) {}
     }
 }

@@ -13,6 +13,7 @@ object Prefs {
     private const val KEY_COUNT = "auto_enable_count"
     private const val KEY_LAST_CHECK = "last_check"
     private const val KEY_LOG = "event_log"
+    // قدیمی‌ها می‌مونن برای سازگاری ولی دیگه استفاده نمی‌شن (قفل صفحه حذف شد)
     private const val KEY_LOCK_ON_DISABLE = "lock_on_disable"
     private const val KEY_LOCK_DELAY_MS = "lock_delay_ms"
 

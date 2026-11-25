@@ -149,8 +149,6 @@ private fun AlwaysDataScreen() {
     var isDeviceOwner by remember { mutableStateOf(checkDeviceOwner(context)) }
 
     var isAdminActive by remember { mutableStateOf(DeviceAdminHelper.isAdminActive(context)) }
-    var lockOnDisable by remember { mutableStateOf(Prefs.isLockOnDisableEnabled(context)) }
-    var lockDelaySec by remember { mutableStateOf((Prefs.getLockDelayMs(context)/1000).toInt()) }
 
     val adminLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -168,8 +166,6 @@ private fun AlwaysDataScreen() {
             batteryExempt = isBatteryExempt(context)
             isDeviceOwner = checkDeviceOwner(context)
             isAdminActive = DeviceAdminHelper.isAdminActive(context)
-            lockOnDisable = Prefs.isLockOnDisableEnabled(context)
-            lockDelaySec = (Prefs.getLockDelayMs(context)/1000).toInt()
             delay(2000)
         }
     }
@@ -401,7 +397,7 @@ private fun AlwaysDataScreen() {
                 }
             )
 
-            // ------------------------------------------------ Device Admin: قفل صفحه
+            // ------------------------------------------------ Device Admin: فقط روشن کردن
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -417,10 +413,10 @@ private fun AlwaysDataScreen() {
                         ) { Icon(Icons.Filled.Security, contentDescription = null) }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("قفل با Device Admin (بدون پاک شدن)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text("Device Admin — روشن کردن خودکار دیتا", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             Text(
-                                if (isAdminActive) "فعاله ✓ — بدون ریست کار می‌کنه"
-                                else "با یک تایید، اگه دیتا خاموش شد صفحه قفل می‌شه",
+                                if (isAdminActive) "فعاله ✓ — اگه دیتا خاموش شد خودکار روشن می‌شه (بدون قفل صفحه)"
+                                else "با یک تایید، هر وقت دیتا خاموش شد خودکار روشن می‌شه",
                                 fontSize = 12.sp, color = Color(0xFF9FB3D1)
                             )
                         }
@@ -433,43 +429,8 @@ private fun AlwaysDataScreen() {
                             Icon(Icons.Filled.CheckCircle, null, tint = Color(0xFF4ADE80), modifier = Modifier.size(22.dp))
                         }
                     }
-                    Spacer(Modifier.height(12.dp))
-                    Text("اگه دیتا خاموش شد، صفحه هم قفل می‌شه و ۵ ثانیه بعد خودش دیتا رو روشن می‌کنه — می‌کشه پایین و روشن می‌کنه. برای خاموش کردن همیشگی باید از خود همین برنامه سوییچ رو بزنی.", fontSize = 12.sp, color = Color(0xFF9FB3D1))
-                    Spacer(Modifier.height(10.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.weight(1f)) {
-                            Text("حالت تنبیهی: خاموش = قفل + روشن خودکار", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                            Text("${lockDelaySec} ثانیه بعد روشن می‌شه", fontSize = 12.sp, color = Color(0xFF9FB3D1))
-                        }
-                        Switch(
-                            checked = lockOnDisable,
-                            onCheckedChange = {
-                                if (!isAdminActive) {
-                                    adminLauncher.launch(DeviceAdminHelper.requestEnableIntent(context))
-                                    return@Switch
-                                }
-                                Prefs.setLockOnDisableEnabled(context, it)
-                                lockOnDisable = it
-                                Prefs.log(context, if (it) "حالت قفل صفحه فعال شد" else "حالت قفل صفحه خاموش شد")
-                            }
-                        )
-                    }
-                    if (lockOnDisable) {
-                        Spacer(Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf(3,5,7,10).forEach { sec ->
-                                val sel = lockDelaySec == sec
-                                OutlinedButton(
-                                    onClick = {
-                                        Prefs.setLockDelayMs(context, sec*1000L)
-                                        lockDelaySec = sec
-                                    },
-                                    colors = if (sel) ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFF4ADE80), contentColor = Color(0xFF052E16)) else ButtonDefaults.outlinedButtonColors()
-                                ) { Text("${sec}ث") }
-                            }
-                        }
-                        Text("تست: نوار بالا رو بکش پایین، دیتا رو خاموش کن — باید صفحه فوری قفل بشه و بعد ${lockDelaySec} ثانیه روشن بشه.", fontSize = 11.sp, color = Color(0xFFFBBF24), modifier = Modifier.padding(top=6.dp))
-                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text("بدون قفل صفحه — فقط دیتا خاموش شد، برنامه با Device Admin دوباره روشنش می‌کنه. بدون ریست، بدون پاک شدن.", fontSize = 12.sp, color = Color(0xFF9FB3D1))
                 }
             }
 
@@ -504,6 +465,50 @@ private fun AlwaysDataScreen() {
                 enabled = true,
                 onClick = { openQuickSettingsEdit(context) }
             )
+
+            // ------------------------------------------------ hide app button
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = AppColorScheme.surface)
+            ) {
+                Column(Modifier.padding(18.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(44.dp).clip(CircleShape).background(AppColorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
+                            Icon(Icons.Filled.Close, contentDescription = null)
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text("مخفی کردن برنامه", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Text("بعد از تست، آیکون از صفحه اصلی میره کنار — کسی نمی‌بینه نصب شده", fontSize = 12.sp, color = Color(0xFF9FB3D1))
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text("سرویس همچنان کار می‌کنه و دیتا روشن می‌مونه. برای برگردوندن: تنظیمات → برنامه‌ها → دیتای همیشه روشن → باز کردن. یا با ADB: adb shell cmd package set-component-enabled com.alwaysdata.app/com.alwaysdata.app.MainActivity enabled", fontSize = 11.sp, color = Color(0xFF9FB3D1))
+                    Spacer(Modifier.height(10.dp))
+                    var showHideConfirm by remember { mutableStateOf(false) }
+                    Button(
+                        onClick = { showHideConfirm = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF334155), contentColor = Color.White)
+                    ) { Text("مخفی کردن الان") }
+                    if (showHideConfirm) {
+                        AlertDialog(
+                            onDismissRequest = { showHideConfirm = false },
+                            containerColor = AppColorScheme.surface,
+                            title = { Text("مخفی شود؟") },
+                            text = { Text("آیکون از لانچر حذف می‌شه ولی برنامه پاک نمی‌شه و در پس‌زمینه دیتا رو روشن نگه می‌داره. مطمئنی؟\n\nبرگردوندن: تنظیمات → برنامه‌ها → دیتای همیشه روشن → باز کردن", fontSize = 13.sp) },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    showHideConfirm = false
+                                    HideHelper.hide(context)
+                                }) { Text("بله، مخفی کن") }
+                            },
+                            dismissButton = { TextButton(onClick = { showHideConfirm = false }) { Text("انصراف") } }
+                        )
+                    }
+                }
+            }
 
             // ------------------------------------------------ log
             Card(
