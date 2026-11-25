@@ -653,10 +653,12 @@ private fun openInternetPanel(context: Context) {
 }
 
 private fun openQuickSettingsEdit(context: Context) {
+    // There is no public Settings.ACTION_QUICK_SETTINGS constant; the
+    // Quick Settings edit screen has no stable public Intent. Fall back
+    // to the main Settings screen and the user can long-press the tile
+    // area to edit.
     try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            context.startActivity(Intent(Settings.ACTION_QUICK_SETTINGS))
-        }
+        context.startActivity(Intent(Settings.ACTION_SETTINGS))
     } catch (_: Exception) {
     }
 }

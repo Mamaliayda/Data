@@ -155,7 +155,10 @@ class AlwaysDataService : Service() {
                 PowerManager.PARTIAL_WAKE_LOCK,
                 "AlwaysData::Poll"
             ).apply {
-                setAndAllowWhileIdle(true)
+                // Keep the CPU on while the screen is off; doze is
+                // handled by WorkManager / AlarmManager — no extra flag
+                // needed here (setAndAllowWhileIdle does not exist on
+                // WakeLock).
                 acquire()
             }
         } catch (_: Exception) {
