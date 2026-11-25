@@ -28,9 +28,24 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
 
       - name: Build debug APK
-        run: gradle assembleDebug --stacktrace
+        run: |
+          set +e
+          gradle assembleDebug --stacktrace > build-log.txt 2>&1
+          CODE=$?
+          tail -n 120 build-log.txt
+          echo "GRADLE_EXIT=$CODE"
+          exit $CODE
+
+      - name: Upload build log (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build-log.txt
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
