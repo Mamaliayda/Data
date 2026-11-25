@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<device-admin xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- No special policies are required; the receiver exists so the app can
+         be granted Device Owner status via ADB for the strongest lock. -->
+    <uses-policies />
+</device-admin>
