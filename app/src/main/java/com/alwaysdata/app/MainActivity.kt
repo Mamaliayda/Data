@@ -528,6 +528,39 @@ private fun AlwaysDataScreen() {
                         }) { Icon(Icons.Filled.ContentCopy, null, tint = Color(0xFF9FB3D1), modifier = Modifier.size(18.dp)) }
                     }
                     Spacer(Modifier.height(8.dp))
+                    // هشدارهای هوشمند بر اساس گوشی خودت
+                    val dbgLower = MobileDataController.debugStatus(context)
+                    if (dbgLower.contains("Device/Profile Owner = معمولی")) {
+                        Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF3A2A0A)), shape = RoundedCornerShape(10.dp)) {
+                            Column(Modifier.padding(10.dp)) {
+                                Text("⚠️ روی Xiaomi اندروید 16، Device Admin به تنهایی دیتا رو روشن نمی‌کنه!", fontSize = 12.sp, color = Color(0xFFFBBF24), fontWeight = FontWeight.Bold)
+                                Text("گوشیت Profile Owner می‌خواد — بدون پاک شدن حافظه.", fontSize = 11.sp, color = Color(0xFFE7D8B0))
+                                Spacer(Modifier.height(6.dp))
+                                Button(onClick = { showOwnerDialog = true }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFBBF24), contentColor = Color(0xFF0B1220))) { Text("راهنمای بدون پاک شدن", fontSize = 12.sp) }
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    if (!batteryExempt) {
+                        Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF3A1A1A)), shape = RoundedCornerShape(10.dp)) {
+                            Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Filled.Warning, null, tint = Color(0xFFF87171), modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text("باتری: سیستم برنامه رو می‌بنده!", fontSize = 12.sp, color = Color(0xFFF87171), fontWeight = FontWeight.Bold)
+                                    Text("برای زنده موندن سرویس اینو بزن", fontSize = 11.sp, color = Color(0xFFCBD5E1))
+                                }
+                                Button(onClick = { requestBatteryExemption(context) }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF87171))) { Text("فعال") }
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                    if (dbgLower.contains("TelephonyManager.setDataEnabled: ✓ موفق") && dbgLower.contains("isDataEnabled = false")) {
+                        Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1B2E1F)), shape = RoundedCornerShape(10.dp)) {
+                            Text("نکته: گوشی می‌گه \"موفق\" ولی واقعا روشن نکرد — این باگ HyperOS شیائومی روی اندروید 16 هست. بدون Profile Owner درست نمی‌شه.", fontSize = 11.sp, color = Color(0xFF4ADE80), modifier = Modifier.padding(10.dp))
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
                     Text(MobileDataController.debugStatus(context), fontSize = 11.sp, color = Color(0xFFCBD5E1), lineHeight = 15.sp)
                     Spacer(Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -535,10 +568,12 @@ private fun AlwaysDataScreen() {
                             onClick = {
                                 val before = MobileDataController.isMobileDataEnabled(context)
                                 val ok = MobileDataController.setMobileDataEnabled(context, true)
-                                val after = MobileDataController.isMobileDataEnabled(context)
-                                val msg = "قبل=$before بعد=$after نتیجه=${if (ok) "OK" else "FAIL"} — جزئیات توی کادر بالا"
-                                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
-                                logs = Prefs.getLog(context)
+                                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                    val after = MobileDataController.isMobileDataEnabled(context)
+                                    val msg = if (after) "✓ واقعا روشن شد!" else "✗ هنوز خاموشه — باید Profile Owner کنی"
+                                    android.widget.Toast.makeText(context, "قبل=$before ادعا=${if (ok) "OK" else "FAIL"} بعد=$after → $msg", android.widget.Toast.LENGTH_LONG).show()
+                                    logs = Prefs.getLog(context)
+                                }, 1300)
                             },
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFBBF24), contentColor = Color(0xFF0B1220))
@@ -547,7 +582,7 @@ private fun AlwaysDataScreen() {
                             Text("باز کردن تنظیمات اینترنت", fontSize = 11.sp)
                         }
                     }
-                    Text("اگر همه ۵ روش FAIL خورد یعنی اندروید 10+ جلوی برنامه معمولی رو گرفته — باید Profile Owner (بدون پاک شدن) فعال کنی تا سوییچ قفل بشه.", fontSize = 11.sp, color = Color(0xFFFBBF24), modifier = Modifier.padding(top=8.dp))
+                    Text("حالت فعلی: Device Admin به تنهایی روی Xiaomi اندروید 16 کافی نیست — باید Profile Owner (بدون پاک شدن) فعال کنی.", fontSize = 11.sp, color = Color(0xFF9FB3D1), modifier = Modifier.padding(top=8.dp))
                 }
             }
 

@@ -85,21 +85,20 @@ class AlwaysDataService : Service() {
 
     private fun handleDataOff() {
         Prefs.incrementAutoEnableCount(this)
-        Prefs.log(this, "دیتا خاموش شد — در حال روشن کردن خودکار با Device Admin")
-        // سریع تلاش کن
-        val ok = MobileDataController.setMobileDataEnabled(this, true)
-        if (!ok) {
-            // اگه نشد، 1.5 ثانیه بعد دوباره
-            scope.launch {
-                delay(1500)
-                if (!MobileDataController.isMobileDataEnabled(this@AlwaysDataService)
-                    && Prefs.isProtectionEnabled(this@AlwaysDataService)) {
-                    MobileDataController.setMobileDataEnabled(this@AlwaysDataService, true)
-                    Prefs.log(this@AlwaysDataService, "تلاش مجدد برای روشن کردن دیتا")
-                }
+        // ادعای الکی قبلا اینجا بود — الان اول می‌زنیم بعد چک می‌کنیم واقعا روشن شد یا نه
+        val okClaimed = MobileDataController.setMobileDataEnabled(this, true)
+        scope.launch {
+            delay(1200)
+            if (!Prefs.isProtectionEnabled(this@AlwaysDataService)) return@launch
+            val actuallyOn = MobileDataController.isMobileDataEnabled(this@AlwaysDataService)
+            if (actuallyOn) {
+                Prefs.log(this@AlwaysDataService, "دیتا بعد از تلاش روشن شد ✓ (ادعا=$okClaimed)")
+            } else {
+                // مهم: روی شیائومی HyperOS اندروید 16 حتی setDataEnabled موفقیت الکی برمی‌گردونه
+                Prefs.log(this@AlwaysDataService, "⚠️ تلاش ادعا کرد موفق ولی دیتا هنوز خاموشه! (claimed=$okClaimed) — اندروید 16 جلوی برنامه عادی رو بسته")
+                // بدون Device/Profile Owner کاری نمی‌شه کرد — فقط دوباره تلاش بی‌فایده است
+                // لاگ دقیق روش‌ها رو هم قبلا MobileDataController نوشته
             }
-        } else {
-            Prefs.log(this, "دیتا با موفقیت روشن شد")
         }
     }
 
