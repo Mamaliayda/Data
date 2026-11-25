@@ -210,6 +210,20 @@ private fun AlwaysDataScreen() {
                     else Icon(Icons.Filled.CheckCircle, null, tint = Color(0xFF4ADE80))
                 }
             }
+            // accessibility fallback
+            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = if (isAccessibilityEnabled(context)) Color(0xFF14331F) else AppColorScheme.surface)) {
+                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Security, null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("accessibility auto-tap", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(if (isAccessibilityEnabled(context)) "active — taps on for you" else "needed on Xiaomi if hidden APIs blocked", fontSize = 11.sp, color = Color(0xFF9FB3D1))
+                    }
+                    if (!isAccessibilityEnabled(context))
+                        Button(onClick = { openAccessibilitySettings(context) }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFBBF24), contentColor = Color.Black)) { Text("enable", fontSize = 11.sp) }
+                    else Icon(Icons.Filled.CheckCircle, null, tint = Color(0xFF4ADE80))
+                }
+            }
             // stats
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Card(Modifier.weight(1f), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = AppColorScheme.surface)) {
@@ -338,6 +352,11 @@ private fun DeviceOwnerDialog(onDismiss: () -> Unit) {
     )
 }
 
+private fun isAccessibilityEnabled(context: Context): Boolean {
+    val enabled = Settings.Secure.getString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) ?: return false
+    return enabled.contains(context.packageName + "/" + AutoClickService::class.java.name)
+}
+private fun openAccessibilitySettings(context: Context) { try { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Exception) {} }
 private fun isBatteryExempt(context: Context): Boolean = try { context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName) } catch (_: Exception) { false }
 private fun checkDeviceOwner(context: Context): Boolean = try { DeviceOwnerHelper.isManaged(context) } catch (_: Exception) { false }
 private fun requestBatteryExemption(context: Context) {

@@ -85,19 +85,22 @@ class AlwaysDataService : Service() {
 
     private fun handleDataOff() {
         Prefs.incrementAutoEnableCount(this)
-        // ادعای الکی قبلا اینجا بود — الان اول می‌زنیم بعد چک می‌کنیم واقعا روشن شد یا نه
         val okClaimed = MobileDataController.setMobileDataEnabled(this, true)
         scope.launch {
             delay(1200)
             if (!Prefs.isProtectionEnabled(this@AlwaysDataService)) return@launch
             val actuallyOn = MobileDataController.isMobileDataEnabled(this@AlwaysDataService)
             if (actuallyOn) {
-                Prefs.log(this@AlwaysDataService, "دیتا بعد از تلاش روشن شد ✓ (ادعا=$okClaimed)")
+                Prefs.log(this@AlwaysDataService, "data on ✓ (claimed=$okClaimed)")
             } else {
-                // مهم: روی شیائومی HyperOS اندروید 16 حتی setDataEnabled موفقیت الکی برمی‌گردونه
-                Prefs.log(this@AlwaysDataService, "⚠️ تلاش ادعا کرد موفق ولی دیتا هنوز خاموشه! (claimed=$okClaimed) — اندروید 16 جلوی برنامه عادی رو بسته")
-                // بدون Device/Profile Owner کاری نمی‌شه کرد — فقط دوباره تلاش بی‌فایده است
-                // لاگ دقیق روش‌ها رو هم قبلا MobileDataController نوشته
+                Prefs.log(this@AlwaysDataService, "⚠️ claimed ok but still off (claimed=$okClaimed) — trying panel")
+                // HyperOS blocked hidden APIs even with grant — open Internet panel for AutoClickService to tap
+                try {
+                    val panel = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                        Intent(Settings.Panel.ACTION_INTERNET_CONNECTIVITY).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    else Intent(Settings.ACTION_NETWORK_OPERATOR_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    startActivity(panel)
+                } catch (_: Exception) {}
             }
         }
     }
