@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">دیتای همیشه روشن</string>
-    <string name="service_channel_name">حفاظت از دیتای موبایل</string>
-    <string name="service_notification_title">دیتای همیشه روشن فعال است</string>
-    <string name="service_notification_text_on">اینترنت موبایل روشن است و محافظت می‌شود</string>
-    <string name="service_notification_text_off">دیتا قطع شد — در حال تلاش برای روشن کردن…</string>
-    <string name="tile_label">دیتای همیشه روشن</string>
-    <string name="widget_title">دیتای همیشه روشن</string>
+    <string name="app_name">data</string>
+    <string name="service_channel_name">data</string>
+    <string name="service_notification_title">data is on</string>
+    <string name="service_notification_text_on">mobile data is on</string>
+    <string name="service_notification_text_off">re-enabling…</string>
+    <string name="tile_label">data</string>
+    <string name="widget_title">data</string>
 </resources>
