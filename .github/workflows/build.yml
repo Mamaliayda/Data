@@ -30,10 +30,10 @@ jobs:
 
       - name: Build debug APK
         run: |
+          set -o pipefail
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace --info 2>&1 | tee build-log.txt
-          echo "GRADLE_EXIT=${PIPESTATUS[0]}"
-          test ${PIPESTATUS[0]} -eq 0
+          ./gradlew assembleDebug --stacktrace 2>&1 | tee build-log.txt
+          echo "EXIT_CODE=${PIPESTATUS[0]}"
 
       - name: Upload APK
         if: success()
@@ -51,12 +51,29 @@ jobs:
             const fs = require('fs');
             let log = '';
             try { log = fs.readFileSync('build-log.txt', 'utf8'); } catch(e) { log = 'no log file: ' + e; }
-            // keep body under 60k
-            const tail = log.slice(-55000);
+            // Extract the useful part: compilation errors and the surrounding 20 lines
+            const lines = log.split('\n');
+            let interesting = [];
+            for (let i = 0; i < lines.length; i++) {
+              const l = lines[i];
+              if (l.includes('BUILD FAILED') || l.match(/\.kt:\d+:/) || l.includes('Unresolved reference') || l.includes('Compilation error') || l.includes('Execution failed') || l.includes('What went wrong')) {
+                const start = Math.max(0, i - 8);
+                const end = Math.min(lines.length, i + 15);
+                for (let j = start; j < end; j++) {
+                  if (!interesting.includes(lines[j])) interesting.push(lines[j]);
+                }
+              }
+            }
+            if (interesting.length === 0) {
+              // fallback: tail 600 lines
+              interesting = lines.slice(-600);
+            }
+            let body = interesting.join('\n');
+            // Truncate to fit GitHub issue limit (65536)
+            if (body.length > 60000) body = body.slice(-60000);
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: `Build failed — run ${context.runId}`,
-              body: `Branch \`${context.ref}\` — run ${context.runId} — [view run](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})\n\n\`\`\`\n${tail}\n\`\`\``,
-              labels: []
+              body: `Branch \`${context.ref}\` — [run ${context.runId}](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})\n\n\`\`\`\n${body}\n\`\`\``,
             });
