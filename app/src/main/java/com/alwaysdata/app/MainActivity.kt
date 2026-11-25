@@ -170,12 +170,17 @@ private fun AlwaysDataScreen() {
             if (on) "حفاظت همیشه‌روشن فعال شد" else "حفاظت همیشه‌روشن خاموش شد"
         )
         if (on) {
+            if (DeviceOwnerHelper.isDeviceOwner(context)) DeviceOwnerHelper.applyHardening(context)
             AlwaysDataService.start(context)
             CheckWorker.enqueue(context)
         } else {
+            // خاموش کردن از داخل خود برنامه: قفل‌های سیستمی هم برداشته می‌شن
+            if (DeviceOwnerHelper.isDeviceOwner(context)) DeviceOwnerHelper.removeHardening(context)
             AlwaysDataService.stop(context)
         }
         protectionEnabled = on
+        // UI رو سریع رفرش کن
+        isDeviceOwner = checkDeviceOwner(context)
     }
 
     Scaffold(
@@ -390,11 +395,25 @@ private fun AlwaysDataScreen() {
             ActionRow(
                 icon = { Icon(Icons.Filled.Security, contentDescription = null) },
                 title = "قفل کامل (Device Owner)",
-                subtitle = if (isDeviceOwner) "فعال است ✓ — قوی‌ترین حالت قفل" else "قوی‌ترین حالت: برنامه را نمی‌توان حذف کرد و دیتا را می‌نویسد",
-                buttonText = if (isDeviceOwner) "فعال است" else "راهنما",
-                enabled = !isDeviceOwner,
+                subtitle = if (isDeviceOwner) "فعال است ✓ — تنظیمات دیتا قفل شده، حذف و ریست محدود شده" else "مهم: فقط با این گزینه سوییچ دیتا واقعا قفل می‌شود — بدون آن فقط خودکار روشن می‌شود",
+                buttonText = if (isDeviceOwner) "مدیریت" else "راهنما + فعال‌سازی",
+                enabled = true,
                 onClick = { showOwnerDialog = true }
             )
+
+            if (isDeviceOwner) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF14331F))
+                ) {
+                    Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = Color(0xFF4ADE80), modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("حالت سخت فعاله — برای لغو، اول سوییچ بالا رو خاموش کن بعد Device Owner رو بردار", fontSize = 12.sp, color = Color(0xFFBBF7D0))
+                    }
+                }
+            }
 
             ActionRow(
                 icon = { Icon(Icons.Filled.PowerSettingsNew, contentDescription = null) },
@@ -551,43 +570,67 @@ private fun ActionRow(
 @Composable
 private fun DeviceOwnerDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current
+    val isOwner = checkDeviceOwner(context)
     val command = "adb shell dpm set-device-owner com.alwaysdata.app/.MyDeviceAdminReceiver"
+    val removeCommand = "adb shell dpm remove-active-admin com.alwaysdata.app/.MyDeviceAdminReceiver"
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = AppColorScheme.surface,
-        title = { Text("قفل کامل با Device Owner", fontWeight = FontWeight.Bold) },
+        title = { Text(if (isOwner) "مدیریت قفل کامل" else "قفل کامل با Device Owner", fontWeight = FontWeight.Bold) },
         text = {
             Column {
-                Text(
-                    "برای قوی‌ترین قفل، برنامه را Device Owner کن. بعد از آن:\n" +
-                        "• برنامه را نمی‌توان بدون برداشتن این وضعیت حذف کرد\n" +
-                        "• برنامه می‌تواند مستقیماً پرچم دیتا را بنویسد\n\n" +
-                        "مراحل (یک بار، با کامپیوتر):\n" +
-                        "۱) گوشی را با USB به کامپیوتر وصل کن و USB Debugging را روشن کن\n" +
-                        "۲) دستور زیر را در ترمینال اجرا کن:\n",
-                    fontSize = 13.sp
-                )
-                Spacer(Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isOwner) {
                     Text(
-                        command,
-                        fontSize = 11.sp,
-                        color = Color(0xFF7DD3FC),
-                        modifier = Modifier.weight(1f)
+                        "✓ Device Owner فعال است. الان این قفل‌ها روشن هستند:\n" +
+                            "• سوییچ دیتای موبایل در تنظیمات قفل (خاکستری) شده\n" +
+                            "• ریست شبکه، حالت امن، حذف برنامه و ساخت کاربر جدید بسته شده\n" +
+                            "• برنامه بدون برداشتن Device Owner حذف نمی‌شه\n\n" +
+                            "برای لغو: اول سوییچ «حفاظت همیشه‌روشن» رو خاموش کن (خودکار قفل‌ها برداشته می‌شن)، بعد اگر خواستی با دستور زیر Device Owner رو بردار:",
+                        fontSize = 13.sp
                     )
-                    IconButton(onClick = {
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        clipboard.setPrimaryClip(ClipData.newPlainText("adb", command))
-                    }) {
-                        Icon(Icons.Filled.ContentCopy, contentDescription = "کپی")
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(removeCommand, fontSize = 10.sp, color = Color(0xFFF87171), modifier = Modifier.weight(1f))
+                        IconButton(onClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText("adb", removeCommand))
+                        }) { Icon(Icons.Filled.ContentCopy, contentDescription = "کپی") }
                     }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(onClick = {
+                        try { DeviceOwnerHelper.applyHardening(context) } catch (_: Exception) {}
+                    }, modifier = Modifier.fillMaxWidth()) { Text("اعمال مجدد همه قفل‌ها") }
+                } else {
+                    Text(
+                        "بدون Device Owner، اندروید اجازه قفل کردن سوییچ دیتا رو نمی‌ده — فقط می‌تونیم هر ۲ ثانیه دوباره روشنش کنیم و راحت دور زده می‌شه.\n\n" +
+                            "با Device Owner، خود سوییچ دیتا در تنظیمات قفل می‌شه:\n" +
+                            "• تنظیمات موبایل نتورک خاکستری می‌شه و خاموش نمی‌شه\n" +
+                            "• برنامه قابل حذف نیست، ریست شبکه و Safe Mode بسته می‌شه\n\n" +
+                            "مراحل (یک بار، با کامپیوتر):",
+                        fontSize = 13.sp
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text("۱) سیم‌کارت داخل گوشی باشه و اینترنت روشن باشه\n۲) «اشکال‌زدایی USB» رو روشن کن (درباره گوشی → ۷ بار روی شماره ساخت بزن)\n۳) گوشی رو با کابل به کامپیوتر وصل کن\n۴) این دستور رو اجرا کن:", fontSize = 12.sp, color = Color(0xFF9FB3D1))
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(command, fontSize = 11.sp, color = Color(0xFF7DD3FC), modifier = Modifier.weight(1f))
+                        IconButton(onClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText("adb", command))
+                        }) { Icon(Icons.Filled.ContentCopy, contentDescription = "کپی") }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "⚠️ اگر خطای «Not allowed» گرفتی یعنی قبلا حساب گوگل اضافه شده. باید:\n" +
+                            "تنظیمات → سیستم → بازنشانی → بازنشانی کارخانه → بعد از بالا آمدن، قبل از اضافه کردن هر حسابی، برنامه رو نصب و همین دستور رو اجرا کن. بعد از اون USB Debugging رو خاموش کن.",
+                        fontSize = 12.sp, color = Color(0xFFFBBF24)
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "یادت باشه: حتی با Device Owner هم ریست سخت‌افزاری با دکمه‌های گوشی قابل بستن نیست — اندروید عمدا این راه رو باز گذاشته تا گوشی برای همیشه قفل نمونه. راه حلش اینه بعد از ریست، به خاطر FRP (قفل گوگل) بدون رمز گوگل قبلی بالا نمیاد و دوباره می‌تونی Device Owner کنی.",
+                        fontSize = 11.sp, color = Color(0xFF9FB3D1)
+                    )
                 }
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "توجه: این دستور فقط وقتی کار می‌کند که روی گوشی هیچ حسابی (گوگل و…) تنظیم نشده باشد؛ در غیر این صورت باید اول گوشی را ریست کارخانه کنی، بعد از راه‌اندازی اولیه و قبل از افزودن حساب، برنامه را نصب و دستور را اجرا کنی.",
-                    fontSize = 12.sp,
-                    color = Color(0xFFFBBF24)
-                )
             }
         },
         confirmButton = {

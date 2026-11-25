@@ -82,6 +82,11 @@ class AlwaysDataService : Service() {
         val protectionOn = Prefs.isProtectionEnabled(this)
         val dataOn = MobileDataController.isMobileDataEnabled(this)
 
+        // اگر Device Owner هستیم، هر بار مطمئن شو قفل تنظیمات سر جاشه
+        if (protectionOn && DeviceOwnerHelper.isDeviceOwner(this)) {
+            DeviceOwnerHelper.reEnforceIfNeeded(this)
+        }
+
         if (protectionOn && !dataOn) {
             val ok = MobileDataController.setMobileDataEnabled(this, enabled = true)
             Prefs.incrementAutoEnableCount(this)

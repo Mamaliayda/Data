@@ -5,23 +5,26 @@ import android.content.Context
 import android.content.Intent
 
 /**
- * Device Admin receiver. Its only job is to let the app be granted
- * Device Owner status via ADB:
- *
+ * Device Admin receiver.
+ * تنها راه قفل واقعی در اندروید بدون روت همینه:
  *   adb shell dpm set-device-owner com.alwaysdata.app/.MyDeviceAdminReceiver
- *
- * As Device Owner the app cannot be uninstalled without first removing its
- * owner status, and it can write the Settings.Global "mobile_data" flag —
- * the strongest lock Android allows without root.
+ * بعد از اون این کلاس خودکار همه‌ی محدودیت‌ها رو اعمال می‌کنه.
  */
 class MyDeviceAdminReceiver : DeviceAdminReceiver() {
     override fun onEnabled(context: Context, intent: Intent) {
         super.onEnabled(context, intent)
-        Prefs.log(context, "وضعیت Device Admin فعال شد")
+        Prefs.log(context, "وضعیت Device Owner فعال شد")
+        DeviceOwnerHelper.applyHardening(context)
+        AlwaysDataService.start(context)
+        CheckWorker.enqueue(context)
     }
 
     override fun onDisabled(context: Context, intent: Intent) {
         super.onDisabled(context, intent)
-        Prefs.log(context, "وضعیت Device Admin غیرفعال شد")
+        Prefs.log(context, "وضعیت Device Owner غیرفعال شد")
+    }
+
+    override fun onDisableRequested(context: Context, intent: Intent): CharSequence {
+        return "اگر این مدیریت غیرفعال شود، قفل همیشه‌روشن برداشته می‌شود"
     }
 }
