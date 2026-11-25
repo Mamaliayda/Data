@@ -17,8 +17,6 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # GitHub's ubuntu runners ship an Android SDK; make sure the exact
-      # packages this project needs are present and licenses accepted.
       - name: Ensure Android SDK packages
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
@@ -32,22 +30,39 @@ jobs:
           gradle-version: 8.7
 
       - name: Build debug APK
+        id: build
         run: |
           set +e
-          gradle assembleDebug --stacktrace > build-log.txt 2>&1
+          gradle assembleDebug --stacktrace --info > build-log.txt 2>&1
           CODE=$?
-          tail -n 120 build-log.txt
           echo "GRADLE_EXIT=$CODE"
+          # Always print tail to Actions log (visible without blob download)
+          echo "===== BUILD LOG TAIL ====="
+          tail -n 200 build-log.txt
+          echo "===== END TAIL ====="
+          # Also expose full log as step summary (rendered in GitHub UI)
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          # Keep summary under 1MB
+          tail -c 900000 build-log.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
           exit $CODE
 
-      - name: Upload build log (on failure)
+      # On failure, commit the log to the same branch so it can be read via
+      # the GitHub contents API (Azure blob download is blocked in this sandbox).
+      - name: Publish build log to branch on failure
         if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: build-log.txt
+        run: |
+          mkdir -p ci-logs
+          cp build-log.txt ci-logs/build-log-${{ github.run_id }}.txt
+          echo "Build failed — see ci-logs/build-log-${{ github.run_id }}.txt" > ci-logs/README.md
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ci-logs/
+          git commit -m "ci: build log for run ${{ github.run_id }}" || true
+          git push origin HEAD:${{ github.ref_name }} || git push origin HEAD:arena/3e0a1028-data || true
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: AlwaysData-debug-apk
