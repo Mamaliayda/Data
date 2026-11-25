@@ -13,7 +13,8 @@ import android.content.Intent
 class MyDeviceAdminReceiver : DeviceAdminReceiver() {
     override fun onEnabled(context: Context, intent: Intent) {
         super.onEnabled(context, intent)
-        Prefs.log(context, "وضعیت Device Owner فعال شد")
+        val mode = DeviceOwnerHelper.modeName(context)
+        Prefs.log(context, "وضعیت $mode فعال شد")
         DeviceOwnerHelper.applyHardening(context)
         AlwaysDataService.start(context)
         CheckWorker.enqueue(context)
@@ -21,7 +22,7 @@ class MyDeviceAdminReceiver : DeviceAdminReceiver() {
 
     override fun onDisabled(context: Context, intent: Intent) {
         super.onDisabled(context, intent)
-        Prefs.log(context, "وضعیت Device Owner غیرفعال شد")
+        Prefs.log(context, "وضعیت ${DeviceOwnerHelper.modeName(context)} غیرفعال شد")
     }
 
     override fun onDisableRequested(context: Context, intent: Intent): CharSequence {
