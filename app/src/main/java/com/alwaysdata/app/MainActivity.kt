@@ -510,6 +510,47 @@ private fun AlwaysDataScreen() {
                 }
             }
 
+            // ------------------------------------------------ DEBUG
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1A2336))
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("🛠 دیباگ — ببینیم چرا روشن نمی‌شه", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFFFBBF24))
+                        Spacer(Modifier.weight(1f))
+                        IconButton(onClick = {
+                            val txt = MobileDataController.debugStatus(context)
+                            val cb = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            cb.setPrimaryClip(ClipData.newPlainText("debug", txt))
+                            android.widget.Toast.makeText(context, "کپی شد", android.widget.Toast.LENGTH_SHORT).show()
+                        }) { Icon(Icons.Filled.ContentCopy, null, tint = Color(0xFF9FB3D1), modifier = Modifier.size(18.dp)) }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(MobileDataController.debugStatus(context), fontSize = 11.sp, color = Color(0xFFCBD5E1), lineHeight = 15.sp)
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = {
+                                val before = MobileDataController.isMobileDataEnabled(context)
+                                val ok = MobileDataController.setMobileDataEnabled(context, true)
+                                val after = MobileDataController.isMobileDataEnabled(context)
+                                val msg = "قبل=$before بعد=$after نتیجه=${if (ok) "OK" else "FAIL"} — جزئیات توی کادر بالا"
+                                android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
+                                logs = Prefs.getLog(context)
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFBBF24), contentColor = Color(0xFF0B1220))
+                        ) { Text("تست روشن کردن الان", fontSize = 12.sp) }
+                        OutlinedButton(onClick = { openInternetPanel(context) }, modifier = Modifier.weight(1f)) {
+                            Text("باز کردن تنظیمات اینترنت", fontSize = 11.sp)
+                        }
+                    }
+                    Text("اگر همه ۵ روش FAIL خورد یعنی اندروید 10+ جلوی برنامه معمولی رو گرفته — باید Profile Owner (بدون پاک شدن) فعال کنی تا سوییچ قفل بشه.", fontSize = 11.sp, color = Color(0xFFFBBF24), modifier = Modifier.padding(top=8.dp))
+                }
+            }
+
             // ------------------------------------------------ log
             Card(
                 modifier = Modifier.fillMaxWidth(),

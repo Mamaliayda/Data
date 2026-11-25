@@ -6,19 +6,22 @@ import android.content.pm.PackageManager
 import android.widget.Toast
 
 /**
- * مخفی کردن آیکون از صفحه اصلی.
- * با غیرفعال کردن کامپوننت لانچر، آیکون میره کنار ولی برنامه نصب می‌مونه و سرویس کار می‌کنه.
+ * مخفی کردن آیکون از لانچر.
+ * روی activity-alias انجام می‌شه نه روی خود MainActivity تا قابل برگشت باشه.
  * برگردوندن: تنظیمات → برنامه‌ها → دیتای همیشه روشن → باز کردن
- * یا با دستور ADB: adb shell cmd package set-component-enabled com.alwaysdata.app/com.alwaysdata.app.MainActivity enabled
  */
 object HideHelper {
 
-    private fun launcherCN(context: Context) = ComponentName(context, MainActivity::class.java)
+    private fun aliasCN(context: Context) = ComponentName(context, "com.alwaysdata.app.LauncherAlias")
+    private fun mainCN(context: Context) = ComponentName(context, MainActivity::class.java)
+
+    fun rawState(context: Context): Int = try {
+        context.packageManager.getComponentEnabledSetting(aliasCN(context))
+    } catch (_: Exception) { -99 }
 
     fun isHidden(context: Context): Boolean {
         return try {
-            val pm = context.packageManager
-            pm.getComponentEnabledSetting(launcherCN(context)) == PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+            rawState(context) == PackageManager.COMPONENT_ENABLED_STATE_DISABLED
         } catch (_: Exception) { false }
     }
 
@@ -26,24 +29,35 @@ object HideHelper {
         return try {
             val pm = context.packageManager
             pm.setComponentEnabledSetting(
-                launcherCN(context),
+                aliasCN(context),
                 PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
                 PackageManager.DONT_KILL_APP
             )
-            Prefs.log(context, "برنامه از لانچر مخفی شد")
-            Toast.makeText(context, "آیکون مخفی شد — برای برگرداندن: تنظیمات → برنامه‌ها → دیتای همیشه روشن → باز کردن", Toast.LENGTH_LONG).show()
+            Prefs.log(context, "برنامه از لانچر مخفی شد (alias)")
+            Toast.makeText(context, "مخفی شد ✓ — برای برگرداندن: تنظیمات → برنامه‌ها → دیتای همیشه روشن → باز کردن", Toast.LENGTH_LONG).show()
             true
         } catch (e: Exception) {
-            Prefs.log(context, "مخفی‌سازی ناموفق: ${e.message}")
-            false
+            Prefs.log(context, "مخفی‌سازی alias ناموفق: ${e.message} — تلاش روی MainActivity")
+            try {
+                context.packageManager.setComponentEnabledSetting(
+                    mainCN(context),
+                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                    PackageManager.DONT_KILL_APP
+                )
+                Toast.makeText(context, "مخفی شد (حالت دوم) ✓", Toast.LENGTH_SHORT).show()
+                true
+            } catch (e2: Exception) {
+                Prefs.log(context, "مخفی‌سازی کامل ناموفق: ${e2.message}")
+                Toast.makeText(context, "مخفی نشد: ${e2.message}", Toast.LENGTH_LONG).show()
+                false
+            }
         }
     }
 
     fun show(context: Context): Boolean {
         return try {
-            val pm = context.packageManager
-            pm.setComponentEnabledSetting(
-                launcherCN(context),
+            context.packageManager.setComponentEnabledSetting(
+                aliasCN(context),
                 PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
                 PackageManager.DONT_KILL_APP
             )
